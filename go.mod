@@ -23,14 +23,14 @@ require (
 	github.com/jsimonetti/rtnetlink v1.4.2 // indirect
 	github.com/kamstrup/intmap v0.5.2 // indirect
 	github.com/mdlayher/netlink v1.11.2 // indirect
-	github.com/mdlayher/socket v0.7.0 // indirect
+	github.com/mdlayher/socket v0.8.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20260823151212-3075585bcbeb // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
