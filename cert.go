@@ -12,9 +12,23 @@ import (
 )
 
 // errHostNotServed is what a handshake for a host this server doesn't answer
-// for (no SNI, an IP, another domain) fails with. dropNotServed keeps it out of
-// the log.
+// for (no SNI, an IP, another domain) fails with. The HTTP server log filters
+// keep it out of the log.
 var errHostNotServed = errors.New("host not served")
+
+type logFilter struct {
+	contains string
+	suffix   string
+}
+
+func httpServerLogFilters() []logFilter {
+	return []logFilter{
+		{contains: "", suffix: ": " + errHostNotServed.Error()},
+		{contains: ": tls: client offered only unsupported versions:", suffix: ""},
+		{contains: ": tls: no cipher suite supported by both client and server", suffix: ""},
+		{contains: "", suffix: ": client sent an HTTP request to an HTTPS server"},
+	}
+}
 
 // newCertManager returns an autocert.Manager that keeps its ACME account key
 // and certificates in dir. It obtains one certificate per subdomain, on the
@@ -29,14 +43,16 @@ func newCertManager(dir string, domains *domainSet, email string) *autocert.Mana
 	return mgr
 }
 
-// dropNotServed returns a logger that discards the TLS handshake errors caused
-// by errHostNotServed, which port scanners and clients connecting by IP produce
-// all day, and passes everything else to inner.
-func dropNotServed(inner logger.Logf) logger.Logf {
+// filterLogf discards messages matching any filter and passes all others to
+// inner.
+func filterLogf(inner logger.Logf, filters ...logFilter) logger.Logf {
 	return func(format string, args ...any) {
 		msg := fmt.Sprintf(format, args...)
-		if strings.HasSuffix(strings.TrimSpace(msg), ": "+errHostNotServed.Error()) {
-			return
+		for _, filter := range filters {
+			if (filter.contains != "" && strings.Contains(msg, filter.contains)) ||
+				(filter.suffix != "" && strings.HasSuffix(strings.TrimSpace(msg), filter.suffix)) {
+				return
+			}
 		}
 
 		inner("%s", msg)

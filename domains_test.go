@@ -78,13 +78,15 @@ func TestServed(t *testing.T) {
 		want bool
 	}{
 		{"derp.example.com", true},
-		{"a.b.example.com", true},
+		{"a.example.com", true},
+		{"a.b.example.com", false},
 		{"www.example.com", true},
 		{testApex, false}, // the apex is the redirect target
 		{testWildcard, true},
 		{testWWW, true},
 		{"x.example.org", true},
 		{testNet, true},
+		{"a.b.example.net", false},
 		{"Derp.Example.COM.", true},
 		{"EXAMPLE.com", false},
 		{"evilexample.org", false},

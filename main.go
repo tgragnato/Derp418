@@ -17,8 +17,9 @@ var (
 	dataDir     = flag.String("datadir", defaultDataDir(),
 		"directory for the node key and the TLS certificates (must persist across restarts)")
 	domainsFlag = flag.String("domains", "",
-		"comma-separated wildcard domains (required): every subdomain is served over TLS, DERP included, "+
-			"and so are www and the bare name of each one except --apex; any other request is redirected to --apex")
+		"comma-separated wildcard domains (required): each domain and its direct "+
+			"subdomains are served over TLS, DERP included, and so are www and the "+
+			"bare name of each one except --apex; any other request is redirected to --apex")
 	apexFlag = flag.String("apex", "",
 		"domain every request that isn't DERP is redirected to (required); it is not served by this server")
 	httpsAddr = flag.String("https-addr", ":443", "HTTPS listen address")

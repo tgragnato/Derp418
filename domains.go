@@ -17,9 +17,9 @@ var (
 
 // domainSet describes what this server answers for.
 //
-// Every subdomain of a wildcard domain is served over TLS (DERP included), and
-// so is each wildcard domain itself, except apex: that is where everything that
-// isn't DERP is redirected, and it is hosted elsewhere.
+// Every direct subdomain of a wildcard domain is served over TLS (DERP
+// included), and so is each wildcard domain itself, except apex: that is where
+// everything that isn't DERP is redirected, and it is hosted elsewhere.
 type domainSet struct {
 	apex    string
 	domains []string // wildcard domains; may include apex
@@ -70,7 +70,14 @@ func (set *domainSet) served(host string) bool {
 	}
 
 	for _, domain := range set.domains {
-		if host == domain || strings.HasSuffix(host, "."+domain) {
+		if host == domain {
+			return true
+		}
+
+		suffix := "." + domain
+
+		subdomain, found := strings.CutSuffix(host, suffix)
+		if found && subdomain != "" && !strings.Contains(subdomain, ".") {
 			return true
 		}
 	}

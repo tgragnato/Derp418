@@ -12,9 +12,10 @@ Let's Encrypt). In return it adds a few behaviours of its own:
 
 - **Tailnet only.** Every client is checked against the local `tailscaled`;
   anyone who is not a peer of your tailnet is refused.
-- **Wildcard host.** It answers on every subdomain of the domains you list,
+- **Wildcard host.** It answers on each listed domain other than the apex and
+  its direct subdomains
   with a Let's Encrypt certificate for each, and redirects everything that is
-  not DERP to a single apex domain.
+  not DERP to a single apex domain. More deeply nested names are refused.
 - **Modern TLS only.** TLS 1.3, ECDSA certificates, post-quantum hybrid key
   exchange preferred, no HTTP/2. No RSA, ever.
 - **State in one directory.** The node key and the certificates live in a
@@ -180,8 +181,8 @@ clients can connect even when DNS is unavailable:
 ```
 
 The `HostName` must be a name for which the server can obtain a certificate:
-a subdomain of one of your `--domains`, or one of those domains (other than the
-apex).
+one of your `--domains` (other than the apex), or a direct subdomain exactly one
+label below one of them.
 
 ## Development
 

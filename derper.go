@@ -121,7 +121,9 @@ func run(ctx context.Context) error {
 	derp.SetVerifyClient(true)
 	derp.SetTailscaledSocketPath(*socket)
 
-	errorLog := log.New(logger.HTTPServerLogFilter{Inner: dropNotServed(log.Printf)}, "", 0)
+	errorLog := log.New(logger.HTTPServerLogFilter{
+		Inner: filterLogf(log.Printf, httpServerLogFilters()...),
+	}, "", 0)
 	certManager := newCertManager(filepath.Join(*dataDir, "certs"), domains, *acmeEmail)
 	httpsServer := newHTTPSServer(derp, domains, certManager, errorLog)
 	httpServer := newHTTPServer(certManager, errorLog)

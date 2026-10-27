@@ -30,7 +30,10 @@ import (
 	"tailscale.com/types/logger"
 )
 
-var errNotTLS = errors.New("not a TLS connection")
+var (
+	errNotTLS                   = errors.New("not a TLS connection")
+	errTestCertificateFailure = errors.New("test certificate failure")
+)
 
 const (
 	certValidity  = 60 * 24 * time.Hour
@@ -364,7 +367,7 @@ func TestGetCertificateNotServed(t *testing.T) {
 	})
 }
 
-func TestDropNotServed(t *testing.T) {
+func TestFilterLogf(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -374,12 +377,31 @@ func TestDropNotServed(t *testing.T) {
 		{"no SNI", "http: TLS handshake error from 192.0.2.1:5000: host not served\n", false},
 		{"no trailing newline", "http: TLS handshake error from [2001:db8::1]:5000: host not served", false},
 		{
-			"other handshake error",
-			"http: TLS handshake error from 192.0.2.1:5000: tls: client offered only unsupported versions\n", true,
+			"unsupported TLS versions",
+			"http: TLS handshake error from 192.0.2.1:5000: tls: client offered only unsupported versions: [303 302 301]\n",
+			false,
+		},
+		{
+			"no common cipher suite",
+			"http: TLS handshake error from 192.0.2.1:5000: tls: no cipher suite supported by both client and server; " +
+				"client offered: [16 33 c09e]\n",
+			false,
+		},
+		{
+			"plain HTTP on HTTPS",
+			"http: TLS handshake error from 192.0.2.1:5000: client sent an HTTP request to an HTTPS server\n",
+			false,
 		},
 		{
 			"ACME failure",
-			"http: TLS handshake error from 192.0.2.1:5000: acme/autocert: unable to authorize\n", true,
+			"http: TLS handshake error from 192.0.2.1:5000: acme/autocert: unable to authorize\n",
+			true,
+		},
+		{
+			"ACME rate limit",
+			"http: TLS handshake error from 192.0.2.1:5000: 429 "+
+				"urn:ietf:params:acme:error:rateLimited: too many certificates\n",
+			true,
 		},
 		{"mentions it elsewhere", "host not served is what we return\n", true},
 		{"unrelated line", "http: Accept error: too many open files\n", true},
@@ -390,9 +412,9 @@ func TestDropNotServed(t *testing.T) {
 
 			var got []string
 
-			dropNotServed(func(format string, args ...any) {
+			filterLogf(func(format string, args ...any) {
 				got = append(got, fmt.Sprintf(format, args...))
-			})("%s", tcase.line)
+			}, httpServerLogFilters()...)("%s", tcase.line)
 
 			if kept := len(got) == 1; kept != tcase.wantKept {
 				t.Fatalf("kept = %v (%q), want %v", kept, got, tcase.wantKept)
@@ -452,9 +474,21 @@ func TestNotServedHandshakesAreNotLogged(t *testing.T) {
 
 	var out syncBuffer
 
-	logf := dropNotServed(func(format string, args ...any) { _, _ = fmt.Fprintf(&out, format, args...) })
+	logf := filterLogf(
+		func(format string, args ...any) { _, _ = fmt.Fprintf(&out, format, args...) },
+		httpServerLogFilters()...,
+	)
 	errorLog := log.New(logger.HTTPServerLogFilter{Inner: logf}, "", 0)
-	server := newServer(http.NotFoundHandler(), newTestTLSConfig(t, dir), errorLog, httpsTimeout)
+	tlsCfg := newTestTLSConfig(t, dir)
+	getCertificate := tlsCfg.GetCertificate
+	tlsCfg.GetCertificate = func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		if hello.ServerName == testHost {
+			return nil, errTestCertificateFailure
+		}
+
+		return getCertificate(hello)
+	}
+	server := newServer(http.NotFoundHandler(), tlsCfg, errorLog, httpsTimeout)
 
 	var listenConfig net.ListenConfig
 
@@ -477,16 +511,12 @@ func TestNotServedHandshakesAreNotLogged(t *testing.T) {
 
 	// A different handshake failure must still be logged. It also marks the
 	// point by which the server has logged everything it was going to.
-	old := clientConfig(testHost)
-	old.MinVersion = 0
-	old.MaxVersion = tls.VersionTLS12
-
-	_, err = dialTLS(t.Context(), listener.Addr().String(), old)
+	_, err = dialTLS(t.Context(), listener.Addr().String(), clientConfig(testHost))
 	if err == nil {
-		t.Fatal("TLS 1.2 handshake succeeded")
+		t.Fatal("handshake with failing certificate succeeded")
 	}
 
-	waitFor(t, "the TLS 1.2 failure to be logged", func() bool {
+	waitFor(t, "the certificate failure to be logged", func() bool {
 		return strings.Contains(out.String(), "TLS handshake error")
 	})
 	time.Sleep(100 * time.Millisecond)
