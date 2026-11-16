@@ -1,11 +1,11 @@
 module tgragnato.it/derp418
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/coder/websocket v1.8.15
 	golang.org/x/crypto v0.58.0
-	tailscale.com v1.104.5
+	tailscale.com v1.104.7
 )
 
 require (
