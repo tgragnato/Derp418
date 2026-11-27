@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	github.com/coder/websocket v1.8.15
 	golang.org/x/crypto v0.59.0
-	tailscale.com v1.104.7
+	tailscale.com v1.106.0
 )
 
 require (
